@@ -1,0 +1,945 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Pay Run | Price Bailey</title>
+<style>
+  /* ============================================================
+     BRAND TOKENS
+     TODO: replace with the confirmed Price Bailey hex values
+     before this goes live on a stand.
+     ============================================================ */
+  :root{
+    --pb-navy:      #0E2A47;   /* TODO confirm: primary dark */
+    --pb-navy-deep: #081B2E;   /* TODO confirm: darker shade */
+    --pb-pink:      #E5006D;   /* TODO confirm: accent */
+    --pb-teal:      #00A3AD;   /* TODO confirm: secondary */
+    --pb-cream:     #F4F4F2;   /* TODO confirm: light surface */
+    --pb-slate:     #6C7A8C;
+    --pb-green:     #178A5A;
+    --pb-amber:     #C77700;
+
+    --font-ui: "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
+  }
+
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:var(--pb-navy-deep);
+    font-family:var(--font-ui);
+    color:var(--pb-cream);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    overflow:hidden;
+    -webkit-tap-highlight-color:transparent;
+  }
+
+  /* Fixed 16:9 stage, scaled to fit any screen */
+  #stage{
+    position:relative;
+    width:1280px;
+    height:720px;
+    transform-origin:center center;
+    background:var(--pb-navy);
+    border-radius:10px;
+    overflow:hidden;
+    box-shadow:0 20px 60px rgba(0,0,0,.45);
+  }
+
+  canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+
+  /* ---------- Brand bar ---------- */
+  #brandbar{
+    position:absolute;top:0;left:0;right:0;height:56px;
+    background:var(--pb-navy-deep);
+    display:flex;align-items:center;justify-content:space-between;
+    padding:0 18px;z-index:5;
+    border-bottom:2px solid rgba(255,255,255,.08);
+  }
+  #logo{display:flex;align-items:center;gap:10px}
+  /* TODO: swap this block for the approved Price Bailey logo file */
+  #logo .mark{
+    width:34px;height:34px;border-radius:5px;
+    background:var(--pb-pink);
+    display:flex;align-items:center;justify-content:center;
+    font-weight:700;font-size:15px;color:#fff;letter-spacing:.5px;
+  }
+  #logo .name{font-size:15px;font-weight:600;letter-spacing:.6px}
+  #logo .name span{opacity:.55;font-weight:400}
+
+  .barbtn{
+    background:transparent;border:1px solid rgba(255,255,255,.22);
+    color:var(--pb-cream);border-radius:6px;
+    padding:7px 12px;font-size:13px;font-family:inherit;cursor:pointer;
+  }
+  .barbtn:hover{background:rgba(255,255,255,.08)}
+  .barbtn:focus-visible{outline:3px solid var(--pb-teal);outline-offset:2px}
+
+  /* ---------- Overlays ---------- */
+  .overlay{
+    position:absolute;inset:56px 0 0 0;z-index:10;
+    background:linear-gradient(180deg, rgba(8,27,46,.96), rgba(8,27,46,.99));
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;padding:24px 48px;
+  }
+  .overlay.hidden{display:none}
+
+  .eyebrow{
+    font-size:13px;letter-spacing:2.4px;text-transform:uppercase;
+    color:var(--pb-teal);margin-bottom:10px;font-weight:600;
+  }
+  h1{font-size:58px;line-height:1;letter-spacing:-1px;margin-bottom:12px}
+  h1 .accent{color:var(--pb-pink)}
+  .strap{font-size:19px;color:#C9D4E0;max-width:640px;margin-bottom:24px;line-height:1.5}
+
+  .rules{
+    display:flex;gap:12px;margin-bottom:26px;flex-wrap:wrap;justify-content:center;
+  }
+  .rule{
+    background:rgba(255,255,255,.05);
+    border:1px solid rgba(255,255,255,.12);
+    border-radius:8px;padding:12px 16px;width:210px;text-align:left;
+  }
+  .rule b{display:block;font-size:14px;margin-bottom:4px}
+  .rule small{font-size:12.5px;color:#9FB0C2;line-height:1.45;display:block}
+  .rule.g b{color:#4DD08F}
+  .rule.a b{color:#F0B44A}
+  .rule.p b{color:#FF7FB5}
+
+  .btn{
+    font-family:inherit;font-size:17px;font-weight:600;
+    padding:15px 34px;border-radius:8px;border:0;cursor:pointer;
+    background:var(--pb-pink);color:#fff;
+  }
+  .btn:hover{filter:brightness(1.1)}
+  .btn:focus-visible{outline:3px solid var(--pb-teal);outline-offset:3px}
+  .btn.ghost{background:transparent;border:2px solid rgba(255,255,255,.35);color:var(--pb-cream)}
+  .btn.ghost:hover{background:rgba(255,255,255,.1)}
+  .btnrow{display:flex;gap:14px;flex-wrap:wrap;justify-content:center}
+  .hint{margin-top:18px;font-size:13px;color:var(--pb-slate)}
+
+  /* ---------- End screen ---------- */
+  .scorebig{font-size:82px;font-weight:700;line-height:1;color:var(--pb-pink)}
+  .scorelab{font-size:13px;letter-spacing:2px;text-transform:uppercase;color:var(--pb-slate);margin-bottom:6px}
+  .perf{font-size:22px;margin:14px 0 6px}
+  .hiscore{font-size:14px;color:var(--pb-slate);margin-bottom:20px}
+
+  .takeaway{
+    background:rgba(255,255,255,.05);
+    border-left:3px solid var(--pb-teal);
+    border-radius:6px;padding:14px 18px;text-align:left;
+    max-width:640px;margin-bottom:24px;
+  }
+  .takeaway p{font-size:14px;color:#C9D4E0;line-height:1.6;margin:3px 0}
+  .takeaway p b{color:#fff}
+
+  .privacy{margin-top:16px;font-size:12px;color:var(--pb-slate)}
+  .privacy a{color:var(--pb-slate)}
+
+  /* ---------- Touch controls (hidden on desktop) ---------- */
+  #touch{
+    position:absolute;bottom:0;left:0;right:0;height:78px;z-index:4;
+    display:none;gap:8px;padding:8px;
+  }
+  #touch button{
+    flex:1;font-family:inherit;font-size:14px;font-weight:600;
+    border-radius:8px;border:1px solid rgba(255,255,255,.2);
+    background:rgba(255,255,255,.08);color:#fff;cursor:pointer;
+  }
+  body.touch #touch{display:flex}
+
+  @media (prefers-reduced-motion: reduce){
+    *{animation:none !important;transition:none !important}
+  }
+</style>
+</head>
+<body>
+
+<div id="stage">
+
+  <!-- Brand bar -->
+  <div id="brandbar">
+    <div id="logo">
+      <div class="mark">PB</div>
+      <div class="name">Price Bailey <span>| Payroll</span></div>
+    </div>
+    <button class="barbtn" id="muteBtn" aria-label="Toggle sound">Sound on</button>
+  </div>
+
+  <canvas id="cv" width="1280" height="720" aria-label="Pay Run game"></canvas>
+
+  <!-- Touch controls -->
+  <div id="touch">
+    <button data-lane="0">Left gate</button>
+    <button data-lane="1">Middle gate</button>
+    <button data-lane="2">Right gate</button>
+  </div>
+
+  <!-- Title screen -->
+  <div class="overlay" id="titleScreen">
+    <div class="eyebrow">Payrolling benefits in kind</div>
+    <h1>Pay <span class="accent">Run</span></h1>
+    <p class="strap">Benefits are heading down the pay run. Steer each one into the gate where it has to be reported. Mandatory payrolling arrives in phases, so not everything moves at once.</p>
+    <div class="rules">
+      <div class="rule g"><b>April 2027</b><small>Phase one. Cars, vans, fuel and employer-provided medical benefits.</small></div>
+      <div class="rule a"><b>April 2028</b><small>Phase two. Most other benefits in kind follow a year later.</small></div>
+      <div class="rule p"><b>Still P11D</b><small>Loans and living accommodation stay outside the mandatory regime.</small></div>
+    </div>
+    <button class="btn" id="startBtn">Start the pay run</button>
+    <p class="hint">Use the left and right arrow keys to steer. 90 seconds. Three lives.<br>Catch a PB token and the Price Bailey power up takes the wheel for double points.</p>
+  </div>
+
+  <!-- End screen -->
+  <div class="overlay hidden" id="endScreen">
+    <div class="scorelab">Final score</div>
+    <div class="scorebig" id="finalScore">0</div>
+    <div class="perf" id="perfMsg">Nice run</div>
+    <div class="hiscore" id="hiScore">Best this session: 0</div>
+
+    <div class="takeaway">
+      <p><b>What this means for your payroll.</b></p>
+      <p>From <b>6 April 2027</b>, company cars, car fuel, vans, van fuel and employer-provided medical benefits must be reported through payroll in real time via the Full Payment Submission.</p>
+      <p>Most other benefits in kind are expected to follow from <b>April 2028</b>.</p>
+      <p>Employment-related loans and living accommodation stay outside the mandatory regime, so the P11D process continues for those.</p>
+    </div>
+
+    <div class="btnrow">
+      <button class="btn" id="leadBtn">Leave your details</button>
+      <button class="btn ghost" id="againBtn">Play again</button>
+    </div>
+    <p class="privacy">Your score and the game address are passed to the enquiry form. Read the <a href="https://www.pricebailey.co.uk/privacy-policy/" target="_blank" rel="noopener">privacy notice</a>. <!-- TODO confirm privacy URL --></p>
+  </div>
+
+</div>
+
+<script>
+/* ================================================================
+   PAY RUN
+   Price Bailey exhibition game. Single file, no dependencies.
+
+   The player steers a payslip into one of three gates:
+     0 = April 2027   (phase one of mandatory payrolling)
+     1 = April 2028   (phase two)
+     2 = Still P11D   (loans and living accommodation)
+   ================================================================ */
+
+/* ---------------------------------------------------------------
+   1. LEAD CAPTURE
+   --------------------------------------------------------------- */
+const FORM_BASE   = 'https://www.pricebailey.co.uk/enquiry-form/game/';
+const FIELD_SCORE = 'wpf72332_23';
+const FIELD_URL   = 'wpf72332_31';   // TODO confirm: _31 vs _30 for this form
+
+function openEnquiryForm(score){
+  const s = Math.max(0, Math.floor(score));
+  const url = `${FORM_BASE}?${FIELD_SCORE}=${encodeURIComponent(s)}&${FIELD_URL}=${encodeURIComponent(window.location.href)}`;
+  window.open(url, '_blank');
+}
+
+/* ---------------------------------------------------------------
+   2. BENEFIT DATA
+   TODO: the Price Bailey Payroll team must sign this list off
+   before the game goes on a stand. Phase allocation is based on
+   HMRC's phased mandatory payrolling announcement.
+     phase 0 = April 2027
+     phase 1 = April 2028
+     phase 2 = remains on P11D
+   --------------------------------------------------------------- */
+const BENEFITS = [
+  // --- Phase one: mandatory payrolling from 6 April 2027 ---
+  { name:'Company car',              phase:0, note:'Company cars are in phase one. Payrolled from April 2027.' },
+  { name:'Car fuel',                 phase:0, note:'Car fuel is in phase one. Payrolled from April 2027.' },
+  { name:'Company van',              phase:0, note:'Company vans are in phase one. Payrolled from April 2027.' },
+  { name:'Van fuel',                 phase:0, note:'Van fuel is in phase one. Payrolled from April 2027.' },
+  { name:'Private medical cover',    phase:0, note:'Employer-provided medical benefits are in phase one. Payrolled from April 2027.' },
+  { name:'Employer-paid dental plan',phase:0, note:'Employer-provided medical benefits are in phase one. Payrolled from April 2027.' },
+
+  // --- Phase two: expected from April 2028 ---
+  { name:'Gym membership',           phase:1, note:'Gym membership sits in phase two. Expected to be payrolled from April 2028.' },
+  { name:'Taxable staff award',      phase:1, note:'Most other benefits follow in phase two, from April 2028.' },
+  { name:'Relocation over £8,000',   phase:1, note:'Relocation above the £8,000 limit follows in phase two, from April 2028.' },
+  { name:'Private use of an asset',  phase:1, note:'Private use of a company asset follows in phase two, from April 2028.' },
+  { name:'Taxable travel expense',   phase:1, note:'Taxable expenses follow in phase two, from April 2028.' },
+  { name:'Professional subscription',phase:1, note:'Where taxable, this follows in phase two, from April 2028.' },
+
+  // --- Outside the mandatory regime ---
+  { name:'Employment-related loan',  phase:2, note:'Loans stay outside mandatory payrolling. P11D still applies, or payroll them voluntarily.' },
+  { name:'Living accommodation',     phase:2, note:'Living accommodation stays outside mandatory payrolling. P11D still applies.' },
+  { name:'Beneficial director loan', phase:2, note:'Employment-related loans stay outside mandatory payrolling. P11D still applies.' }
+];
+
+const GATE_LABELS = ['April 2027', 'April 2028', 'Still P11D'];
+const GATE_COLOURS = ['#178A5A', '#C77700', '#E5006D'];
+
+/* ---------------------------------------------------------------
+   3. CONSTANTS
+   --------------------------------------------------------------- */
+const W = 1280, H = 720;
+const ROAD_L = 260, ROAD_R = 1020;
+const ROAD_W = ROAD_R - ROAD_L;
+const LANE_W = ROAD_W / 3;
+const LANE_X = [0,1,2].map(i => ROAD_L + LANE_W * i + LANE_W / 2);
+
+const PLAYER_Y   = 560;   // vertical centre of the payslip
+const GATE_H     = 84;
+const START_SPD  = 165;   // px per second
+const MAX_SPD    = 420;
+const SPD_STEP   = 9;     // added per correct gate
+const ROUND_TIME = 90;    // seconds
+const LIVES      = 3;
+const FREEZE_MS  = 1700;  // pause after a wrong gate so the player reads the correction
+
+// Price Bailey power up
+const BONUS_EVERY = 6;    // correct gates between bonus tokens appearing
+const AUTO_GATES  = 4;    // gates the game plays for you
+const AUTO_MULT   = 1.85; // speed multiplier while the power up runs
+
+/* ---------------------------------------------------------------
+   4. STATE
+   --------------------------------------------------------------- */
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+
+let state = 'title';        // title | countdown | playing | freeze | over
+let score = 0, best = 0, streak = 0, lives = LIVES;
+let speed = START_SPD;
+let timeLeft = ROUND_TIME;
+let lane = 1, laneX = LANE_X[1];
+let gate = null;            // active wave
+let feedback = null;        // {ok, text, until}
+let freezeUntil = 0;
+let countdownEnd = 0;
+let particles = [];
+let bag = [];               // shuffled draw bag so benefits do not repeat too fast
+let lastTs = 0;
+let shake = 0;
+
+// power up state
+let auto = false;           // true while Price Bailey plays the run for you
+let autoLeft = 0;           // gates remaining on autopilot
+let sinceBonus = 0;         // correct gates since the last bonus token
+let preSpeed = START_SPD;   // speed to restore when the power up ends
+let pulse = 0;              // animation clock for the teal overlay
+
+/* ---------------------------------------------------------------
+   5. AUDIO (Web Audio API, no files)
+   --------------------------------------------------------------- */
+let audioCtx = null, muted = false;
+function beep(freq, dur, type = 'sine', vol = 0.06){
+  if (muted) return;
+  try{
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.type = type; o.frequency.value = freq;
+    g.gain.setValueAtTime(vol, audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + dur);
+    o.connect(g).connect(audioCtx.destination);
+    o.start(); o.stop(audioCtx.currentTime + dur);
+  }catch(e){ /* audio is a nicety, never break the game for it */ }
+}
+const sfx = {
+  correct(){ beep(660, .10, 'sine', .06); setTimeout(()=>beep(880, .14, 'sine', .05), 80); },
+  wrong(){   beep(150, .28, 'sawtooth', .05); },
+  move(){    beep(420, .04, 'square', .02); },
+  tick(){    beep(520, .07, 'sine', .04); },
+  go(){      beep(760, .18, 'sine', .06); },
+  power(){   [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => beep(f, .18, 'triangle', .07), i * 90)); },
+  handback(){[784, 587].forEach((f, i) => setTimeout(() => beep(f, .14, 'sine', .05), i * 110)); }
+};
+
+/* ---------------------------------------------------------------
+   6. HELPERS
+   --------------------------------------------------------------- */
+function shuffle(a){
+  const b = a.slice();
+  for (let i = b.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    [b[i], b[j]] = [b[j], b[i]];
+  }
+  return b;
+}
+
+function drawBenefit(){
+  if (!bag.length) bag = shuffle(BENEFITS);
+  return bag.pop();
+}
+
+// Gate order is fixed early on so players can learn it, then shuffles later.
+function gateOrder(){
+  const hard = score > 1200 || speed > 280;
+  return hard ? shuffle([0,1,2]) : [0,1,2];
+}
+
+function spawnGate(){
+  // Every so often, send a Price Bailey bonus token down one lane instead of a gate.
+  if (!auto && sinceBonus >= BONUS_EVERY){
+    gate = {
+      bonus: true,
+      y: -GATE_H,
+      lane: Math.floor(Math.random() * 3),
+      order: [0,1,2],
+      benefit: null,
+      resolved: false
+    };
+    return;
+  }
+  const b = drawBenefit();
+  gate = { y: -GATE_H, benefit: b, order: gateOrder(), resolved: false };
+}
+
+// The power up: Price Bailey takes the wheel for a few gates.
+function activatePowerUp(){
+  auto = true;
+  autoLeft = AUTO_GATES;
+  sinceBonus = 0;
+  preSpeed = speed;
+  speed = Math.min(MAX_SPD * 1.6, speed * AUTO_MULT);
+  burst(laneX, PLAYER_Y, '#00A3AD', 40);
+  sfx.power();
+}
+
+function roundedRect(x, y, w, h, r){
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+function burst(x, y, colour, n = 18){
+  for (let i = 0; i < n; i++){
+    const a = Math.random() * Math.PI * 2, s = 60 + Math.random() * 190;
+    particles.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: .55, colour });
+  }
+}
+
+/* ---------------------------------------------------------------
+   7. INPUT
+   --------------------------------------------------------------- */
+function move(dir){
+  if (state !== 'playing') return;
+  const next = Math.max(0, Math.min(2, lane + dir));
+  if (next !== lane){ lane = next; sfx.move(); }
+}
+function setLane(i){
+  if (state !== 'playing') return;
+  if (i !== lane){ lane = i; sfx.move(); }
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowLeft'  || e.key.toLowerCase() === 'a'){ move(-1); e.preventDefault(); }
+  if (e.key === 'ArrowRight' || e.key.toLowerCase() === 'd'){ move(1);  e.preventDefault(); }
+  if (e.key === '1') setLane(0);
+  if (e.key === '2') setLane(1);
+  if (e.key === '3') setLane(2);
+  if (e.key === 'Enter' && state === 'title') startGame();
+  if (e.key === 'Enter' && state === 'over')  startGame();
+});
+
+// Touch: three large lane buttons, shown only on touch devices
+if (matchMedia('(pointer: coarse)').matches) document.body.classList.add('touch');
+document.querySelectorAll('#touch button').forEach(b => {
+  b.addEventListener('click', () => setLane(+b.dataset.lane));
+});
+
+document.getElementById('muteBtn').addEventListener('click', e => {
+  muted = !muted;
+  e.target.textContent = muted ? 'Sound off' : 'Sound on';
+});
+
+/* ---------------------------------------------------------------
+   8. GAME FLOW
+   --------------------------------------------------------------- */
+function startGame(){
+  score = 0; streak = 0; lives = LIVES;
+  speed = START_SPD; timeLeft = ROUND_TIME;
+  lane = 1; laneX = LANE_X[1];
+  particles = []; feedback = null; bag = [];
+  gate = null;
+  auto = false; autoLeft = 0; sinceBonus = 0; preSpeed = START_SPD;
+
+  document.getElementById('titleScreen').classList.add('hidden');
+  document.getElementById('endScreen').classList.add('hidden');
+
+  state = 'countdown';
+  countdownEnd = performance.now() + 3200;
+}
+
+function endGame(){
+  state = 'over';
+  best = Math.max(best, score);
+
+  document.getElementById('finalScore').textContent = score.toLocaleString('en-GB');
+  document.getElementById('hiScore').textContent = 'Best this session: ' + best.toLocaleString('en-GB');
+
+  let msg = 'Worth a second run';
+  if (score >= 800)  msg = 'Solid grasp of the timeline';
+  if (score >= 1600) msg = 'Your payroll is in safe hands';
+  if (score >= 2600) msg = 'Ready for April 2027';
+  document.getElementById('perfMsg').textContent = msg;
+
+  document.getElementById('endScreen').classList.remove('hidden');
+}
+
+function resolveGate(){
+  // --- Bonus token wave. No lives at risk, it is a pure reward. ---
+  if (gate.bonus){
+    gate.resolved = true;
+    if (lane === gate.lane){
+      activatePowerUp();
+    } else {
+      sinceBonus = 0;
+      feedback = { ok:true, colour:'#6C7A8C', text:'Bonus missed', until: performance.now() + 800 };
+    }
+    gate = null;
+    spawnGate();
+    return;
+  }
+
+  const chosen = gate.order[lane];          // which label sits in the player's lane
+  const correct = chosen === gate.benefit.phase;
+  gate.resolved = true;
+
+  if (correct){
+    streak++;
+    const mult = Math.min(5, 1 + Math.floor(streak / 5));
+    const pts = (auto ? 200 : 100) * mult;   // the power up doubles every gate
+    score += pts;
+    burst(laneX, PLAYER_Y, auto ? '#00A3AD' : GATE_COLOURS[chosen]);
+    sfx.correct();
+
+    if (auto){
+      autoLeft--;
+      feedback = { ok:true, colour:'#00A3AD', text:'Powered through  +' + pts, until: performance.now() + 700 };
+      if (autoLeft <= 0){
+        auto = false;
+        speed = preSpeed;                    // hand back at the pace they left off
+        feedback = { ok:true, colour:'#00A3AD', text:'Over to you', until: performance.now() + 1200 };
+        sfx.handback();
+      }
+    } else {
+      sinceBonus++;
+      speed = Math.min(MAX_SPD, speed + SPD_STEP);
+      feedback = { ok:true, text:'Correct  +' + pts, until: performance.now() + 900 };
+    }
+
+    gate = null;
+    spawnGate();
+  } else {
+    streak = 0;
+    lives--;
+    shake = 12;
+    const right = GATE_LABELS[gate.benefit.phase];
+    feedback = { ok:false, text: gate.benefit.note, right, until: performance.now() + FREEZE_MS };
+    sfx.wrong();
+    if (lives <= 0){ endGame(); return; }
+    state = 'freeze';
+    freezeUntil = performance.now() + FREEZE_MS;
+  }
+}
+
+/* ---------------------------------------------------------------
+   9. UPDATE
+   --------------------------------------------------------------- */
+function update(dt, now){
+  // smooth lane glide
+  laneX += (LANE_X[lane] - laneX) * Math.min(1, dt * 12);
+
+  // particles
+  particles = particles.filter(p => (p.life -= dt) > 0);
+  particles.forEach(p => { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 380 * dt; });
+
+  if (shake > 0) shake = Math.max(0, shake - dt * 40);
+
+  if (state === 'countdown'){
+    if (now >= countdownEnd){ state = 'playing'; spawnGate(); sfx.go(); }
+    return;
+  }
+
+  if (state === 'freeze'){
+    if (now >= freezeUntil){
+      state = 'playing';
+      feedback = null;
+      gate = null;
+      spawnGate();
+    }
+    return;
+  }
+
+  if (state !== 'playing') return;
+
+  // clock
+  timeLeft -= dt;
+  if (timeLeft <= 0){ timeLeft = 0; endGame(); return; }
+
+  pulse += dt;
+
+  // gate travel
+  if (gate && !gate.resolved){
+    // On autopilot, Price Bailey picks the correct lane for the player.
+    if (auto && gate.benefit) lane = gate.order.indexOf(gate.benefit.phase);
+    gate.y += speed * dt;
+    if (gate.y + GATE_H >= PLAYER_Y - 10) resolveGate();
+  }
+
+  if (feedback && feedback.ok && now > feedback.until) feedback = null;
+}
+
+/* ---------------------------------------------------------------
+   10. DRAW
+   --------------------------------------------------------------- */
+let roadScroll = 0;
+
+function draw(dt){
+  ctx.save();
+  if (shake > 0) ctx.translate((Math.random()-.5) * shake, (Math.random()-.5) * shake);
+
+  // background
+  ctx.fillStyle = '#0E2A47';
+  ctx.fillRect(0, 0, W, H);
+
+  // road surface
+  ctx.fillStyle = '#0A2039';
+  ctx.fillRect(ROAD_L, 56, ROAD_W, H - 56);
+
+  // lane dividers, scrolling to suggest motion
+  if (state === 'playing') roadScroll = (roadScroll + speed * dt) % 60;
+  ctx.strokeStyle = 'rgba(255,255,255,.10)';
+  ctx.lineWidth = 3;
+  ctx.setLineDash([26, 34]);
+  ctx.lineDashOffset = -roadScroll;
+  for (let i = 1; i < 3; i++){
+    const x = ROAD_L + LANE_W * i;
+    ctx.beginPath(); ctx.moveTo(x, 56); ctx.lineTo(x, H); ctx.stroke();
+  }
+  ctx.setLineDash([]);
+
+  // road edges
+  ctx.strokeStyle = 'rgba(255,255,255,.16)';
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(ROAD_L, 56); ctx.lineTo(ROAD_L, H);
+  ctx.moveTo(ROAD_R, 56); ctx.lineTo(ROAD_R, H); ctx.stroke();
+
+  // lane headers, always visible so the player never has to guess
+  ctx.textAlign = 'center';
+  for (let i = 0; i < 3; i++){
+    const order = gate ? gate.order[i] : i;
+    ctx.fillStyle = 'rgba(255,255,255,.06)';
+    roundedRect(LANE_X[i] - LANE_W/2 + 8, 66, LANE_W - 16, 30, 5); ctx.fill();
+    ctx.fillStyle = GATE_COLOURS[order];
+    ctx.font = '600 15px ' + getComputedStyle(document.body).fontFamily;
+    ctx.fillText(GATE_LABELS[order], LANE_X[i], 87);
+  }
+
+  drawGate();
+  drawPlayer();
+  drawParticles();
+  drawPowerUp();      // teal hue and banner sit above the road, below the HUD
+  drawHud();
+  drawFeedback();
+  drawCountdown();
+
+  ctx.restore();
+}
+
+/* Price Bailey power up: teal wash, speed streaks and a banner. */
+function drawPowerUp(){
+  if (!auto) return;
+  const f = getComputedStyle(document.body).fontFamily;
+
+  // teal hue over the whole stage
+  ctx.fillStyle = 'rgba(0,163,173,.16)';
+  ctx.fillRect(0, 56, W, H - 56);
+
+  // pulsing edge glow
+  ctx.strokeStyle = 'rgba(0,163,173,' + (0.5 + Math.sin(pulse * 8) * 0.25) + ')';
+  ctx.lineWidth = 6;
+  ctx.strokeRect(3, 59, W - 6, H - 62);
+
+  // speed streaks to sell the boost
+  ctx.strokeStyle = 'rgba(127,227,232,.35)';
+  ctx.lineWidth = 2;
+  for (let i = 0; i < 14; i++){
+    const sx = ROAD_L + ((i * 97 + (pulse * 900) % ROAD_W) % ROAD_W);
+    const sy = 100 + ((i * 211 + pulse * 1400) % (H - 140));
+    ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx, sy + 34); ctx.stroke();
+  }
+
+  // banner
+  ctx.textAlign = 'center';
+  const bw = 520, bh = 62, bx = W/2 - bw/2, by = 130;
+  ctx.fillStyle = 'rgba(8,27,46,.86)';
+  roundedRect(bx, by, bw, bh, 10); ctx.fill();
+  ctx.strokeStyle = '#00A3AD';
+  ctx.lineWidth = 2;
+  roundedRect(bx, by, bw, bh, 10); ctx.stroke();
+
+  ctx.fillStyle = '#7FE3E8';
+  ctx.font = '700 27px ' + f;
+  ctx.fillText('Price Bailey Power Up', W/2, by + 32);
+  ctx.fillStyle = '#C9D4E0';
+  ctx.font = '500 14px ' + f;
+  ctx.fillText('Double points. ' + autoLeft + ' gate' + (autoLeft === 1 ? '' : 's') + ' left, then it is back to you.', W/2, by + 52);
+}
+
+function drawBonusToken(){
+  const f = getComputedStyle(document.body).fontFamily;
+  const x = LANE_X[gate.lane];
+  const y = gate.y + GATE_H / 2;
+  const bob = Math.sin(pulse * 6) * 4;
+  const glow = 44 + Math.sin(pulse * 6) * 5;
+
+  // glow
+  ctx.globalAlpha = .22;
+  ctx.fillStyle = '#00A3AD';
+  ctx.beginPath(); ctx.arc(x, y + bob, glow + 16, 0, Math.PI * 2); ctx.fill();
+  ctx.globalAlpha = 1;
+
+  // token
+  ctx.fillStyle = '#00A3AD';
+  ctx.beginPath(); ctx.arc(x, y + bob, glow, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#F4F4F2';
+  ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(x, y + bob, glow - 6, 0, Math.PI * 2); ctx.stroke();
+
+  ctx.fillStyle = '#fff';
+  ctx.textAlign = 'center';
+  ctx.font = '700 26px ' + f;
+  ctx.fillText('PB', x, y + bob + 9);
+
+  ctx.fillStyle = '#7FE3E8';
+  ctx.font = '700 15px ' + f;
+  ctx.fillText('BONUS', x, y + bob + glow + 24);
+}
+
+function drawGate(){
+  if (!gate || gate.resolved) return;
+  if (gate.bonus){ drawBonusToken(); return; }
+  const y = gate.y;
+
+  for (let i = 0; i < 3; i++){
+    const idx = gate.order[i];
+    const x = LANE_X[i] - LANE_W/2 + 10;
+    const w = LANE_W - 20;
+
+    // posts
+    ctx.fillStyle = 'rgba(255,255,255,.15)';
+    ctx.fillRect(x - 4, y, 5, GATE_H);
+    ctx.fillRect(x + w - 1, y, 5, GATE_H);
+
+    // banner
+    ctx.fillStyle = GATE_COLOURS[idx];
+    roundedRect(x, y, w, GATE_H, 8); ctx.fill();
+
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'center';
+    ctx.font = '700 26px ' + getComputedStyle(document.body).fontFamily;
+    ctx.fillText(GATE_LABELS[idx], x + w/2, y + 42);
+    ctx.font = '500 13px ' + getComputedStyle(document.body).fontFamily;
+    ctx.globalAlpha = .85;
+    ctx.fillText(idx === 2 ? 'P11D continues' : 'Payroll it', x + w/2, y + 64);
+    ctx.globalAlpha = 1;
+  }
+}
+
+function drawPlayer(){
+  const w = 168, h = 118;
+  const x = laneX - w/2, y = PLAYER_Y - h/2;
+  const b = gate ? gate.benefit : null;
+
+  // shadow
+  ctx.fillStyle = 'rgba(0,0,0,.35)';
+  roundedRect(x + 4, y + 6, w, h, 8); ctx.fill();
+
+  // payslip body
+  ctx.fillStyle = '#F4F4F2';
+  roundedRect(x, y, w, h, 8); ctx.fill();
+
+  // pink header strip
+  ctx.fillStyle = '#E5006D';
+  ctx.save();
+  roundedRect(x, y, w, h, 8); ctx.clip();
+  ctx.fillRect(x, y, w, 26);
+  ctx.restore();
+
+  ctx.fillStyle = '#fff';
+  ctx.textAlign = 'left';
+  ctx.font = '700 12px ' + getComputedStyle(document.body).fontFamily;
+  ctx.fillText('BENEFIT IN KIND', x + 10, y + 18);
+
+  // benefit name, wrapped to two lines
+  ctx.fillStyle = '#0E2A47';
+  ctx.font = '700 17px ' + getComputedStyle(document.body).fontFamily;
+  const label = b ? b.name : (gate && gate.bonus ? 'Grab the PB bonus' : '...');
+  const words = label.split(' ');
+  let line = '', ly = y + 52;
+  words.forEach(word => {
+    const test = line ? line + ' ' + word : word;
+    if (ctx.measureText(test).width > w - 22 && line){
+      ctx.fillText(line, x + 11, ly); line = word; ly += 21;
+    } else line = test;
+  });
+  ctx.fillText(line, x + 11, ly);
+
+  // fake payslip rules
+  ctx.strokeStyle = 'rgba(14,42,71,.16)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 3; i++){
+    const ry = y + h - 30 + i * 8;
+    ctx.beginPath(); ctx.moveTo(x + 11, ry); ctx.lineTo(x + w - 40, ry); ctx.stroke();
+  }
+  ctx.fillStyle = '#6C7A8C';
+  ctx.font = '600 10px ' + getComputedStyle(document.body).fontFamily;
+  ctx.fillText('PRICE BAILEY PAYROLL', x + 11, y + h - 40);
+}
+
+function drawParticles(){
+  particles.forEach(p => {
+    ctx.globalAlpha = Math.max(0, p.life / .55);
+    ctx.fillStyle = p.colour;
+    ctx.fillRect(p.x, p.y, 5, 5);
+  });
+  ctx.globalAlpha = 1;
+}
+
+function drawHud(){
+  const f = getComputedStyle(document.body).fontFamily;
+  ctx.textAlign = 'left';
+
+  // score
+  ctx.fillStyle = '#6C7A8C';
+  ctx.font = '600 11px ' + f;
+  ctx.fillText('SCORE', 28, 96);
+  ctx.fillStyle = '#F4F4F2';
+  ctx.font = '700 38px ' + f;
+  ctx.fillText(score.toLocaleString('en-GB'), 28, 132);
+
+  // streak
+  const mult = Math.min(5, 1 + Math.floor(streak / 5));
+  if (streak >= 5){
+    ctx.fillStyle = '#00A3AD';
+    ctx.font = '700 16px ' + f;
+    ctx.fillText('x' + mult + ' streak', 28, 160);
+  }
+
+  // lives
+  ctx.fillStyle = '#6C7A8C';
+  ctx.font = '600 11px ' + f;
+  ctx.fillText('LIVES', 28, 210);
+  for (let i = 0; i < LIVES; i++){
+    ctx.fillStyle = i < lives ? '#E5006D' : 'rgba(255,255,255,.14)';
+    roundedRect(28 + i * 26, 222, 18, 18, 4); ctx.fill();
+  }
+
+  // timer
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#6C7A8C';
+  ctx.font = '600 11px ' + f;
+  ctx.fillText('TIME', W - 28, 96);
+  ctx.fillStyle = timeLeft <= 10 ? '#E5006D' : '#F4F4F2';
+  ctx.font = '700 38px ' + f;
+  ctx.fillText(Math.ceil(timeLeft) + 's', W - 28, 132);
+
+  // controls reminder
+  ctx.fillStyle = 'rgba(255,255,255,.30)';
+  ctx.font = '500 13px ' + f;
+  ctx.fillText('← →  steer', W - 28, H - 26);
+}
+
+function drawFeedback(){
+  if (!feedback) return;
+  const f = getComputedStyle(document.body).fontFamily;
+  ctx.textAlign = 'center';
+
+  if (feedback.ok){
+    ctx.fillStyle = feedback.colour || '#4DD08F';
+    ctx.font = '700 30px ' + f;
+    ctx.fillText(feedback.text, W/2, PLAYER_Y - 110);
+    return;
+  }
+
+  // wrong gate: dim the road and explain
+  ctx.fillStyle = 'rgba(8,27,46,.86)';
+  ctx.fillRect(0, 56, W, H - 56);
+
+  ctx.fillStyle = '#E5006D';
+  ctx.font = '700 34px ' + f;
+  ctx.fillText('Not that gate', W/2, 250);
+
+  ctx.fillStyle = '#F4F4F2';
+  ctx.font = '600 22px ' + f;
+  ctx.fillText('Correct gate: ' + feedback.right, W/2, 300);
+
+  // wrap the explanatory note
+  ctx.fillStyle = '#C9D4E0';
+  ctx.font = '400 19px ' + f;
+  const words = feedback.text.split(' ');
+  let line = '', y = 360;
+  words.forEach(word => {
+    const test = line ? line + ' ' + word : word;
+    if (ctx.measureText(test).width > 760 && line){
+      ctx.fillText(line, W/2, y); line = word; y += 28;
+    } else line = test;
+  });
+  ctx.fillText(line, W/2, y);
+}
+
+function drawCountdown(){
+  if (state !== 'countdown') return;
+  const f = getComputedStyle(document.body).fontFamily;
+  const remain = countdownEnd - performance.now();
+  const n = Math.ceil((remain - 200) / 1000);
+  const label = n > 0 ? String(n) : 'Go';
+
+  if (label !== drawCountdown.last){
+    drawCountdown.last = label;
+    label === 'Go' ? sfx.go() : sfx.tick();
+  }
+
+  ctx.fillStyle = 'rgba(8,27,46,.72)';
+  ctx.fillRect(0, 56, W, H - 56);
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#E5006D';
+  ctx.font = '700 130px ' + f;
+  ctx.fillText(label, W/2, H/2 + 20);
+  ctx.fillStyle = '#C9D4E0';
+  ctx.font = '500 20px ' + f;
+  ctx.fillText('Steer the payslip into the right gate', W/2, H/2 + 80);
+}
+
+/* ---------------------------------------------------------------
+   11. LOOP
+   --------------------------------------------------------------- */
+function loop(ts){
+  const dt = Math.min(.05, (ts - lastTs) / 1000 || 0);
+  lastTs = ts;
+  if (state !== 'title' && state !== 'over') update(dt, ts);
+  draw(dt);
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+/* ---------------------------------------------------------------
+   12. UI WIRING
+   --------------------------------------------------------------- */
+document.getElementById('startBtn').addEventListener('click', startGame);
+document.getElementById('againBtn').addEventListener('click', startGame);
+document.getElementById('leadBtn').addEventListener('click', () => openEnquiryForm(best));
+
+/* ---------------------------------------------------------------
+   13. RESPONSIVE SCALING
+   Keeps the 16:9 stage sharp on laptops, tablets and large screens.
+   --------------------------------------------------------------- */
+function fit(){
+  const s = Math.min(window.innerWidth / W, window.innerHeight / H);
+  document.getElementById('stage').style.transform = 'scale(' + s + ')';
+}
+window.addEventListener('resize', fit);
+fit();
+</script>
+</body>
+</html>
