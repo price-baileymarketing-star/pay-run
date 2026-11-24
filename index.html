@@ -138,6 +138,9 @@
   .privacy{margin-top:16px;font-size:12px;color:var(--pb-slate)}
   .privacy a{color:var(--pb-slate)}
 
+  /* The kit (lib/screen-kit.js) draws the title, details form and end screens */
+  #titleScreen, #endScreen { display: none !important; }
+
   /* ---------- Touch controls (hidden on desktop) ---------- */
   #touch{
     position:absolute;bottom:0;left:0;right:0;height:78px;z-index:4;
@@ -154,6 +157,7 @@
     *{animation:none !important;transition:none !important}
   }
 </style>
+<link rel="icon" href="assets/pb-box-logo.jpg">
 </head>
 <body>
 
@@ -196,7 +200,6 @@
     <div class="scorelab">Final score</div>
     <div class="scorebig" id="finalScore">0</div>
     <div class="perf" id="perfMsg">Nice run</div>
-    <div class="hiscore" id="hiScore">Best this session: 0</div>
 
     <div class="takeaway">
       <p><b>What this means for your payroll.</b></p>
@@ -206,14 +209,17 @@
     </div>
 
     <div class="btnrow">
-      <button class="btn" id="leadBtn">Leave your details</button>
       <button class="btn ghost" id="againBtn">Play again</button>
     </div>
-    <p class="privacy">Your score and the game address are passed to the enquiry form. Read the <a href="https://www.pricebailey.co.uk/privacy-policy/" target="_blank" rel="noopener">privacy notice</a>. <!-- TODO confirm privacy URL --></p>
   </div>
 
 </div>
 
+<script src="lib/mqtt.min.js"></script>
+<script src="lib/qrcode.js"></script>
+<script src="lib/link.js"></script>
+<script src="lib/hubspot.js"></script>
+<script src="lib/screen-kit.js"></script>
 <script>
 /* ================================================================
    PAY RUN
@@ -227,16 +233,8 @@
 
 /* ---------------------------------------------------------------
    1. LEAD CAPTURE
+   Handled by lib/screen-kit.js and lib/hubspot.js (see section 14).
    --------------------------------------------------------------- */
-const FORM_BASE   = 'https://www.pricebailey.co.uk/enquiry-form/game/';
-const FIELD_SCORE = 'wpf72332_23';
-const FIELD_URL   = 'wpf72332_31';   // TODO confirm: _31 vs _30 for this form
-
-function openEnquiryForm(score){
-  const s = Math.max(0, Math.floor(score));
-  const url = `${FORM_BASE}?${FIELD_SCORE}=${encodeURIComponent(s)}&${FIELD_URL}=${encodeURIComponent(window.location.href)}`;
-  window.open(url, '_blank');
-}
 
 /* ---------------------------------------------------------------
    2. BENEFIT DATA
@@ -303,7 +301,7 @@ const cv = document.getElementById('cv');
 const ctx = cv.getContext('2d');
 
 let state = 'title';        // title | countdown | playing | freeze | over
-let score = 0, best = 0, streak = 0, lives = LIVES;
+let score = 0, streak = 0, lives = LIVES;
 let speed = START_SPD;
 let timeLeft = ROUND_TIME;
 let lane = 1, laneX = LANE_X[1];
@@ -454,7 +452,8 @@ document.getElementById('muteBtn').addEventListener('click', e => {
 /* ---------------------------------------------------------------
    8. GAME FLOW
    --------------------------------------------------------------- */
-function startGame(){
+function startGame(){ PBScreen.requestStart(); }   // every old start button and key lands here
+function beginRun(){
   score = 0; streak = 0; lives = LIVES;
   speed = START_SPD; timeLeft = ROUND_TIME;
   lane = 1; laneX = LANE_X[1];
@@ -471,18 +470,13 @@ function startGame(){
 
 function endGame(){
   state = 'over';
-  best = Math.max(best, score);
-
-  document.getElementById('finalScore').textContent = score.toLocaleString('en-GB');
-  document.getElementById('hiScore').textContent = 'Best this session: ' + best.toLocaleString('en-GB');
 
   let msg = 'Worth a second run';
   if (score >= 800)  msg = 'Solid grasp of the timeline';
   if (score >= 1600) msg = 'Your payroll is in safe hands';
   if (score >= 2600) msg = 'Ready for April 2027';
-  document.getElementById('perfMsg').textContent = msg;
 
-  document.getElementById('endScreen').classList.remove('hidden');
+  PBScreen.ended({ sc: score, ttl: 'Run complete', msg: msg });
 }
 
 function resolveGate(){
@@ -917,7 +911,7 @@ function drawCountdown(){
 function loop(ts){
   const dt = Math.min(.05, (ts - lastTs) / 1000 || 0);
   lastTs = ts;
-  if (state !== 'title' && state !== 'over') update(dt, ts);
+  if (state !== 'title' && state !== 'over' && !PBScreen.paused) update(dt, ts);
   draw(dt);
   requestAnimationFrame(loop);
 }
@@ -928,7 +922,6 @@ requestAnimationFrame(loop);
    --------------------------------------------------------------- */
 document.getElementById('startBtn').addEventListener('click', startGame);
 document.getElementById('againBtn').addEventListener('click', startGame);
-document.getElementById('leadBtn').addEventListener('click', () => openEnquiryForm(best));
 
 /* ---------------------------------------------------------------
    13. RESPONSIVE SCALING
@@ -940,6 +933,44 @@ function fit(){
 }
 window.addEventListener('resize', fit);
 fit();
+
+/* ---------------------------------------------------------------
+   14. TWO-SCREEN SETUP
+   QR code and room code, details form, phone controller, end screen.
+   Settings that can change per event live in lib/hubspot.js (event name, wording)
+   and lib/screen-kit.js (timings).
+   --------------------------------------------------------------- */
+PBScreen.init({
+  logo: 'assets/pb-box-logo.jpg',
+  title: 'Pay Run',
+  tagline: 'Payrolling benefits in kind',
+  blurb: 'Benefits are heading down the pay run. Steer each one into the gate where it has to be reported. Mandatory payrolling arrives in phases, so not everything moves at once.',
+  titleExtraHtml: '<div class="rules">' +
+    '<div class="rule"><b>April 2027</b><small>Phase one. Cars, vans, fuel and employer-provided medical benefits.</small></div>' +
+    '<div class="rule"><b>April 2028</b><small>Phase two. Most other benefits in kind follow a year later.</small></div>' +
+    '<div class="rule"><b>Still P11D</b><small>Loans and living accommodation stay outside the mandatory regime.</small></div></div>',
+  hint: 'Steer with your phone, or play here with the arrow keys. 90 seconds. Three lives.',
+  scoreLabel: 'Final score',
+  endExtraHtml: '<p><b>What this means for your payroll.</b></p>' +
+    '<p>From <b>6 April 2027</b>, company cars, car fuel, vans, van fuel and employer-provided medical benefits must be reported through payroll in real time via the Full Payment Submission.</p>' +
+    '<p>Most other benefits in kind are expected to follow from <b>April 2028</b>.</p>' +
+    '<p>Employment-related loans and living accommodation stay outside the mandatory regime, so the P11D process continues for those.</p>',
+  theme: { bg1: '#081B2E', bg2: '#0E2A47', text: '#F4F4F2', dim: '#C9D4E0', accent: '#E5006D', accent2: '#00A3AD', warn: '#F2A93B',
+           btnText: '#ffffff', font: '"Segoe UI", system-ui, -apple-system, Arial, sans-serif', titleBg: 'rgba(8,27,46,.93)' },
+  titleDrift: true,
+  start: function () { beginRun(); },
+  hud: function () { return { sc: score, ln: 'Lives ' + lives + '  |  ' + Math.ceil(timeLeft) + 's' }; },
+  press: function (k) {                         // buttons from the phone
+    if (k === 'lane0') setLane(0); else if (k === 'lane1') setLane(1); else if (k === 'lane2') setLane(2);
+  },
+  release: function () {},
+  pause: function (on, gap) {                   // phone dropped: the kit stops the game loop, we keep the timers fair
+    if (!on) { countdownEnd += gap; freezeUntil += gap; if (feedback) feedback.until += gap; }
+  },
+  unlockAudio: function () {
+    try { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); if (audioCtx.state === 'suspended') audioCtx.resume(); } catch (e) {}
+  }
+});
 </script>
 </body>
 </html>
